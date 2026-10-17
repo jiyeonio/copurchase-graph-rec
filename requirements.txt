@@ -1,0 +1,11 @@
+# Python 3.13.11; torch is the CUDA 13.0 build
+torch==2.13.0
+torch-geometric==2.8.0.post1
+numpy==2.5.2
+scipy==1.18.1
+pandas==3.0.5
+scikit-learn==1.9.0
+networkx==3.6.1
+transformers==5.17.0
+# only for analysis/emb_vis2.py (Figure 4)
+matplotlib

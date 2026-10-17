@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# data, embeddings, checkpoints, results and generated tables are not part of this repository
+*.npy
+*.npz
+*.pt
+*.pth
+*.ckpt
+*.csv
+*.parquet
+*.pkl
+data/
+results/
+paper/
+checkpoints/
+
+# logs and LaTeX build products
+*.log
+*.out
+*.aux
+*.bbl
+*.blg
+*.pdf
+
+# editor / OS / local settings
+.DS_Store
+.idea/
+.vscode/
+*.swp
+.env
+
+# local tool settings
+.claude/
+CLAUDE.md
