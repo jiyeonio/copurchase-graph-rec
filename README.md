@@ -2,17 +2,17 @@
 
 Jiyeon Kim, Jangmin Oh (School of AI Convergence, Sungshin Women's University). Submitted to *Applied Sciences* (MDPI).
 
-논문의 표·그림·본문 수치를 만드는 코드다.
+Code that produces the tables, figures and in-text numbers of the paper.
 
-## 모델
+## Model
 
-상품마다 두 가지 고정 표현을 쓴다. 하나는 상품 설명문을 KR-ELECTRA로 인코딩한 [CLS] 벡터(텍스트 표현), 다른 하나는 학습 사용자의 주문으로 만든 상품–상품 동시구매 그래프에서 LightGCN이 학습한 벡터(그래프 표현)다. 각 표현은 Linear + LayerNorm + GELU로 d차원에 사영된다. 주문 단위 Transformer는 한 주문의 상품을 같은 위치로 묶어 집합으로 읽고, block-causal 어텐션으로 이전 주문까지만 본다. 텍스트 표현과 그래프 표현은 같은 Transformer가 각각 읽어 전체 상품의 점수를 내고, 학습되는 가중치로 두 점수를 더한다(late fusion). 학습은 이력의 모든 주문에서 다음 주문의 상품을 예측하고, 마지막 target의 항에 가중치 2를 준다. 코드와 문서의 transaction은 논문의 order(주문)다.
+Each item has two fixed representations. One is the [CLS] vector of the item description encoded with KR-ELECTRA (text representation); the other is the vector learned by LightGCN on the item–item co-purchase graph built from the orders of the training users (graph representation). Each representation is projected to d dimensions with Linear + LayerNorm + GELU. The order-level Transformer groups the items of an order under the same position and reads them as a set, and with block-causal attention it sees only up to the previous orders. The same Transformer reads the text representation and the graph representation separately and produces scores for all items, and the two scores are added with learned weights (late fusion). Training predicts the items of the next order at every order of the history and gives weight 2 to the term of the last target. A transaction in the code and documentation is an order in the paper.
 
 ## Requirements
 
-`requirements.txt`에 버전을 고정했다. `preprocess/katchers_split.py`의 정답 샘플링과 분할은 pandas·scikit-learn의 난수 구현을 따르므로 이 버전(pandas 3.0.5, scikit-learn 1.9.0)을 쓴다.
+Versions are pinned in `requirements.txt`. The target sampling and the split in `preprocess/katchers_split.py` depend on the random number implementations of pandas and scikit-learn, so use these versions (pandas 3.0.5, scikit-learn 1.9.0).
 
-| 항목 | 버전 |
+| Package | Version |
 |---|---|
 | Python | 3.13.11 |
 | torch | 2.13.0 (CUDA 13.0) |
@@ -21,57 +21,57 @@ Jiyeon Kim, Jangmin Oh (School of AI Convergence, Sungshin Women's University). 
 | networkx | 3.6.1 |
 | transformers | 5.17.0 |
 | scikit-learn | 1.9.0 |
-| matplotlib | `analysis/emb_vis2.py`(그림 4)에만 필요 |
-| GPU | NVIDIA RTX A5000 24 GB 한 장 |
+| matplotlib | only needed for `analysis/emb_vis2.py` (Figure 4) |
+| GPU | one NVIDIA RTX A5000 24 GB |
 
 ## Data
 
-- Katcher's: 선행 연구 [1] 레포에서 받음 (https://github.com/msparkDev/ConcurrentBERT-Recommender)
+- Katcher's: obtained from the repository of the prior work [1] (https://github.com/msparkDev/ConcurrentBERT-Recommender)
 - Instacart: https://www.kaggle.com/c/instacart-market-basket-analysis/data (`orders.csv`, `order_products__prior.csv`, `order_products__train.csv`, `products.csv`, `aisles.csv`, `departments.csv`)
 
 [1] Park, M.; Oh, J. Enhancing e-commerce recommendation systems with multiple item purchase data: A bidirectional encoder representations from transformers-based approach. *Applied Sciences* 2024, 14, 7255. https://doi.org/10.3390/app14167255
 
 ## How to run
 
-모든 경로는 `paths.py`(Python)와 `config.sh`(shell)에 정의되어 있다. 기본값은 이 폴더 아래의 `data/katchers_split`, `data/katchers`, `data/instacart`, `results/`, `paper/`이고, 환경변수 `KATCHERS_SPLIT`, `KATCHERS_DATA`, `INSTACART_DATA`, `RESULTS`, `PAPER`, `PY`로 바꿀 수 있다.
+All paths are defined in `paths.py` (Python) and `config.sh` (shell). The defaults are `data/katchers_split`, `data/katchers`, `data/instacart`, `results/` and `paper/` under this folder, and they can be changed with the environment variables `KATCHERS_SPLIT`, `KATCHERS_DATA`, `INSTACART_DATA`, `RESULTS`, `PAPER` and `PY`.
 
-0. [1] 레포에서 `raw_data_katchers.csv`(`data/` 폴더)를 받는다.
+0. Download `raw_data_katchers.csv` (in the `data/` folder) from the repository of [1].
 
-1. Katcher's 사용자 필터링과 60/20/20 분할
+1. Katcher's user filtering and 60/20/20 split
 
 ```bash
 python preprocess/katchers_split.py --raw <raw_data_katchers.csv> --out-dir data/katchers_split
 ```
 
-2. 전처리 (target, 1:49 test 후보, 동시구매 그래프)
+2. Preprocessing (targets, 1:49 test candidates, co-purchase graph)
 
 ```bash
 python preprocess/katchers.py  --data-dir data/katchers_split --output-dir data/katchers
-python preprocess/instacart.py --raw-dir <Instacart csv 폴더> --out-dir data/instacart
+python preprocess/instacart.py --raw-dir <Instacart csv folder> --out-dir data/instacart
 python graphs/lightgcn_g.py --dataset instacart --data-dir data/instacart --freq 3 --emb-dir data/instacart \
     --seeds 42 43 44 45 46 --checkpoint-dir results/ic_graphs/ckpt
 ```
 
-3. 그래프, 텍스트 임베딩, 학습, 분석, 표 (GPU 작업은 하나씩 순서대로)
+3. Graphs, text embeddings, training, analysis, tables (GPU jobs one at a time, in order)
 
 ```bash
 cd scripts
-bash 01_graphs_katcher.sh        # Katcher's 동시구매 그래프(f≥1, f≥2, f≥3), LightGCN, 재배선 그래프, 간선 제거 그래프
-bash 02_graphs_instacart.sh      # Instacart 재배선 그래프와 LightGCN
-bash 03_text_embeddings.sh       # 텍스트 임베딩 (KR-ELECTRA; Instacart ELECTRA-base)
+bash 01_graphs_katcher.sh        # Katcher's co-purchase graphs (f≥1, f≥2, f≥3), LightGCN, rewired graphs, edge-removed graphs
+bash 02_graphs_instacart.sh      # Instacart rewired graphs and LightGCN
+bash 03_text_embeddings.sh       # text embeddings (KR-ELECTRA; Instacart ELECTRA-base)
 bash 04_train_katcher.sh         # Katcher's: Text+Graph, Text only, Graph only, ID only
-bash 05_train_instacart.sh       # Instacart: 같은 구성
-bash 06_controls.sh              # 재배선 그래프로 재학습
-bash 07_variants.sh              # item-level 변형, last-order 변형
-bash 08_threshold_katcher.sh     # Katcher's 동시구매 임계값 f≥2, f≥3
-bash 09_baselines_full.sh        # 베이스라인 (SASRec, BERT4Rec, GRU4Rec, LightGCN)
-bash 10_edge_removal.sh          # Katcher's 간선 제거
+bash 05_train_instacart.sh       # Instacart: the same configurations
+bash 06_controls.sh              # retraining with the rewired graphs
+bash 07_variants.sh              # item-level variant, last-order variant
+bash 08_threshold_katcher.sh     # Katcher's co-purchase thresholds f≥2, f≥3
+bash 09_baselines_full.sh        # baselines (SASRec, BERT4Rec, GRU4Rec, LightGCN)
+bash 10_edge_removal.sh          # Katcher's edge removal
 bash 11_english_encoder.sh       # Instacart ELECTRA-base
-bash 12_analysis.sh              # 순위 덤프, 집단별 분석, 최근접 이웃, 그림 4·5
+bash 12_analysis.sh              # rank dumps, group analyses, nearest neighbours, Figures 4 and 5
 bash 13_tables.sh                # paper/tables/*.tex, paper/numbers.tex
 ```
 
-모델 하나를 직접 실행하려면:
+To run a single model directly:
 
 ```bash
 python model/model_katchers.py  --exp kc11/NAME --src text+graph --text-path results/text/kc/item_embeddings_text.npy \
@@ -79,37 +79,37 @@ python model/model_katchers.py  --exp kc11/NAME --src text+graph --text-path res
 python model/model_instacart.py --exp ic11/NAME --src text+graph --graph-dir data/instacart --out-root results/runs --test
 ```
 
-`--src {text+graph|text|graph|id}`가 상품 표현이고, 나머지 기본값이 논문의 설정이다.
-`--item-level`은 item-level 변형, `--last-order-only`는 last-order 변형이다.
-`--eval-only --ckpt-dir <폴더>`는 학습 없이 저장된 checkpoint를 평가한다.
+`--src {text+graph|text|graph|id}` is the item representation, and the other defaults are the settings of the paper.
+`--item-level` is the item-level variant and `--last-order-only` the last-order variant.
+`--eval-only --ckpt-dir <folder>` evaluates saved checkpoints without training.
 
-## 표·그림 → 스크립트
+## Tables and figures → scripts
 
-번호는 논문의 번호다. 표 파일과 매크로(`paper/numbers.tex`)는 모두 `tables/make_tables.py`(13)가 쓴다. 매크로로 들어가는 표는 출력 열에 매크로 이름의 앞부분을 적었다.
+The numbering is that of the paper. All table files and macros (`paper/numbers.tex`) are written by `tables/make_tables.py` (13). For tables filled by macros, the output column gives the prefix of the macro names.
 
-| 논문 | 출력 | 실행 (scripts) | 계산 코드 |
+| Paper | Output | Run (scripts) | Code |
 |---|---|---|---|
 | Table 1 | `paper/tables/check_stats.json`, `\kcisolated`, `\icisolated` | 13, 12 | `tables/check_stats.py`, `analysis/link_an_lg.py` |
-| Figure 1, 2, 3 | — | — | TikZ 그림 (이 저장소에 없음) |
-| Table 2 | 매크로 `\kc…`, `\ic…`, `\kcbase…`, `\icbase…` | 04, 05, 09 | `tables/make_tables.py`, `baselines/base_full_eval.py` |
+| Figure 1, 2, 3 | — | — | TikZ figures (not in this repository) |
+| Table 2 | macros `\kc…`, `\ic…`, `\kcbase…`, `\icbase…` | 04, 05, 09 | `tables/make_tables.py`, `baselines/base_full_eval.py` |
 | Table 3 | `T_knn.tex` | 12 | `analysis/kc_item_meta.py`, `analysis/emb_vis2.py` |
 | Figure 4 | `paper/figs/emb_tsne_ic.pdf` | 12 | `analysis/emb_vis2.py` |
 | Figure 5 | `paper/figs/fig_case.tex` | 12 | `analysis/make_case.py` |
 | Table 4 | `T_link.tex` | 04, 05, 06, 12 | `analysis/link_an_lg.py` |
-| Table 5 | 매크로 `\kcst…` | 06, 12 | `analysis/story_an.py` |
-| Table 6 | 매크로 `\kcctl…`, `\kcgctl…`, `\icctl…`, `\icgctl…` | 01, 02, 06, 12 | `analysis/link_an_lg.py` |
+| Table 5 | macros `\kcst…` | 06, 12 | `analysis/story_an.py` |
+| Table 6 | macros `\kcctl…`, `\kcgctl…`, `\icctl…`, `\icgctl…` | 01, 02, 06, 12 | `analysis/link_an_lg.py` |
 | Table 7 | `T_degree.tex` | 12 | `analysis/link_an_lg.py` |
-| Table 8 | 매크로 `\kcabl…`, `\icabl…` | 07 | `analysis/ablation_an.py` |
-| Table A1 | 매크로 `…Afive`, `…Ffive` | 04, 05, 09 | `tables/make_tables.py`, `baselines/base_full_eval.py` |
+| Table 8 | macros `\kcabl…`, `\icabl…` | 07 | `analysis/ablation_an.py` |
+| Table A1 | macros `…Afive`, `…Ffive` | 04, 05, 09 | `tables/make_tables.py`, `baselines/base_full_eval.py` |
 | Table A2 | `T_sig.tex` | 04, 05 | `tables/make_tables.py` |
 | Table A3 | `T_unmasked.tex` | 04, 05, 09 | `tables/make_tables.py`, `baselines/base_full_eval.py` |
 | Table A4 | `T_link_unmasked.tex` | 12 | `analysis/link_an_lg.py` |
 | Table A5 | `T_control_full.tex` | 06, 12 | `analysis/link_an_lg.py` |
-| Table A6 | 매크로 `\kcst…` | 06, 12 | `analysis/story_an.py` |
+| Table A6 | macros `\kcst…` | 06, 12 | `analysis/story_an.py` |
 | Table A7 | `T_edges.tex` | 01, 10 | `graphs/drop_edges.py`, `analysis/edge_removal_an.py` |
 | Table A8 | `T_fsens.tex` | 01, 08 | `graphs/build_graph_katchers.py` |
 | Table A9 | `T_ic_enc.tex` | 03, 11 | `graphs/text_electra_en.py`, `tables/make_tables.py` |
-| 본문 수치 (Holm 보정, 집단 비율, 주문 크기별 비교, 토큰 통계, 파라미터 수 등) | `paper/numbers.tex`, `paper/tables/holm.json` | 12, 13 | `tables/make_tables.py`, `analysis/extra_an2.py`, `analysis/extra_ordsize.py`, `analysis/tok_stats.py` |
+| In-text numbers (Holm correction, group shares, comparison by order size, token statistics, parameter counts, etc.) | `paper/numbers.tex`, `paper/tables/holm.json` | 12, 13 | `tables/make_tables.py`, `analysis/extra_an2.py`, `analysis/extra_ordsize.py`, `analysis/tok_stats.py` |
 
 ## Citation
 
