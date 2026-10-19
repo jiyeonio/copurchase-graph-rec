@@ -27,7 +27,7 @@ Versions are pinned in `requirements.txt`. The target sampling and the split in 
 ## Data
 
 - Katcher's: obtained from the repository of the prior work [1] (https://github.com/msparkDev/ConcurrentBERT-Recommender)
-- Instacart: https://www.kaggle.com/c/instacart-market-basket-analysis/data (`orders.csv`, `order_products__prior.csv`, `order_products__train.csv`, `products.csv`, `aisles.csv`, `departments.csv`)
+- Instacart: the Instacart Online Grocery Shopping Dataset 2017, released through the Kaggle competition "Instacart Market Basket Analysis" (`orders.csv`, `order_products__prior.csv`, `order_products__train.csv`, `products.csv`, `aisles.csv`, `departments.csv`)
 
 [1] Park, M.; Oh, J. Enhancing e-commerce recommendation systems with multiple item purchase data: A bidirectional encoder representations from transformers-based approach. *Applied Sciences* 2024, 14, 7255. https://doi.org/10.3390/app14167255
 
