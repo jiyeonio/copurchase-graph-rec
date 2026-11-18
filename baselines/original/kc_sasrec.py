@@ -1,4 +1,4 @@
-"""Baseline of the paper (Section 5.2; Table 2, Tables A1 and A3): SASRec (BCE + 1 sampled negative)
+"""Baseline of the paper (Section 5.2; Table 6, Tables A1 and A3): SASRec (BCE + 1 sampled negative)
 Dataset: Katcher's
 Run: python baselines/original/kc_sasrec.py --data-dir <DATA_DIR> --emb-dir <EMB_DIR> --out-dir <OUT_DIR> (the paper's numbers: scripts/09_baselines_full.sh)
 """

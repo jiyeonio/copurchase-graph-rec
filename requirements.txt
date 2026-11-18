@@ -7,5 +7,5 @@ pandas==3.0.5
 scikit-learn==1.9.0
 networkx==3.6.1
 transformers==5.17.0
-# only for analysis/emb_vis2.py (Figure 4)
+# only for analysis/emb_vis2.py (Figure 5)
 matplotlib

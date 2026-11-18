@@ -21,7 +21,7 @@ Versions are pinned in `requirements.txt`. The target sampling and the split in 
 | networkx | 3.6.1 |
 | transformers | 5.17.0 |
 | scikit-learn | 1.9.0 |
-| matplotlib | only needed for `analysis/emb_vis2.py` (Figure 4) |
+| matplotlib | only needed for `analysis/emb_vis2.py` (Figure 5) |
 | GPU | one NVIDIA RTX A5000 24 GB |
 
 ## Data
@@ -62,12 +62,12 @@ bash 03_text_embeddings.sh       # text embeddings (KR-ELECTRA; Instacart ELECTR
 bash 04_train_katcher.sh         # Katcher's: Text+Graph, Text only, Graph only, ID only
 bash 05_train_instacart.sh       # Instacart: the same configurations
 bash 06_controls.sh              # retraining with the rewired graphs
-bash 07_variants.sh              # item-level variant, last-order variant
+bash 07_variants.sh              # variants: item-level, last order only, mean readout, final-target weight 1 and 4
 bash 08_threshold_katcher.sh     # Katcher's co-purchase thresholds f≥2, f≥3
 bash 09_baselines_full.sh        # baselines (SASRec, BERT4Rec, GRU4Rec, LightGCN)
 bash 10_edge_removal.sh          # Katcher's edge removal
 bash 11_english_encoder.sh       # Instacart ELECTRA-base
-bash 12_analysis.sh              # rank dumps, group analyses, nearest neighbours, Figures 4 and 5
+bash 12_analysis.sh              # rank dumps, group analyses, nearest neighbours, Figures 5 and 6
 bash 13_tables.sh                # paper/tables/*.tex, paper/numbers.tex
 ```
 
@@ -80,26 +80,32 @@ python model/model_instacart.py --exp ic11/NAME --src text+graph --graph-dir dat
 ```
 
 `--src {text+graph|text|graph|id}` is the item representation, and the other defaults are the settings of the paper.
-`--item-level` is the item-level variant and `--last-order-only` the last-order variant.
+`--item-level` is the item-level variant, `--last-order-only` the last-order variant, `--readout mean` the mean readout of the order state and `--final-weight` the weight of the final-target term (default 2).
 `--eval-only --ckpt-dir <folder>` evaluates saved checkpoints without training.
 
 ## Tables and figures → scripts
 
-The numbering is that of the paper. All table files and macros (`paper/numbers.tex`) are written by `tables/make_tables.py` (13). For tables filled by macros, the output column gives the prefix of the macro names.
+The numbering is that of the paper. Unless a row says otherwise, the table files (`paper/tables/T_*.tex`) and the macros (`paper/numbers.tex`) are written by `tables/make_tables.py` (13). The macros of BERT-NSP are written by `proto_bert_nsp/make_numbers.py` into a file of their own. For Tables 1, 2, 5 and A11 the scripts write the values to a JSON file, and the table in the paper (for Appendix H also its macros) is typeset from that file. Tables 3 and 4 and Figures 1–4 are written in the manuscript and have no script. For tables filled by macros, the output column gives the prefix of the macro names.
 
 | Paper | Output | Run (scripts) | Code |
 |---|---|---|---|
 | Table 1 | `paper/tables/check_stats.json`, `\kcisolated`, `\icisolated` | 13, 12 | `tables/check_stats.py`, `analysis/link_an_lg.py` |
-| Figure 1, 2, 3 | — | — | TikZ figures (not in this repository) |
-| Table 2 | macros `\kc…`, `\ic…`, `\kcbase…`, `\icbase…` | 04, 05, 09 | `tables/make_tables.py`, `baselines/base_full_eval.py` |
-| Table 3 | `T_knn.tex` | 12 | `analysis/kc_item_meta.py`, `analysis/emb_vis2.py` |
-| Figure 4 | `paper/figs/emb_tsne_ic.pdf` | 12 | `analysis/emb_vis2.py` |
-| Figure 5 | `paper/figs/fig_case.tex` | 12 | `analysis/make_case.py` |
-| Table 4 | `T_link.tex` | 04, 05, 06, 12 | `analysis/link_an_lg.py` |
-| Table 5 | macros `\kcst…` | 06, 12 | `analysis/story_an.py` |
-| Table 6 | macros `\kcctl…`, `\kcgctl…`, `\icctl…`, `\icgctl…` | 01, 02, 06, 12 | `analysis/link_an_lg.py` |
-| Table 7 | `T_degree.tex` | 12 | `analysis/link_an_lg.py` |
-| Table 8 | macros `\kcabl…`, `\icabl…` | 07 | `analysis/ablation_an.py` |
+| Table 2 | `paper/tables/check_stats.json` (key `r1`) | 01, 02, 13 | `tables/check_stats.py` |
+| Figure 1, 2, 3, 4 | — | — | TikZ figures (not in this repository) |
+| Table 3 | — | — | notation, written in the manuscript |
+| Table 4 | — | — | settings and environment, written in the manuscript; the parameter count is the macro `\oursparams` (in-text numbers, last row) |
+| Table 5 | `results/extra/bench_cost.json` | `python analysis/bench_cost.py` (GPU; not called by a numbered script) | `analysis/bench_cost.py` |
+| Table 6 | macros `\kc…`, `\ic…`, `\kcbase…`, `\icbase…` | 04, 05, 09 | `tables/make_tables.py`, `baselines/base_full_eval.py` |
+| Table 6 and Table A1, row BERT-NSP (Katcher's), and the BERT-NSP numbers in the text | `results/proto_bert_nsp/numbers_bert_nsp.tex`: macros `\kcbaseBERTNSP…`, `\kcdvsBERTNSP…`, `\kccivsBERTNSP…`, `\kcBERTNSPcut…` | 04, then `proto_bert_nsp/run_all.sh` (stages 1 and 2) | `proto_bert_nsp/run.py`, `proto_bert_nsp/make_numbers.py` (see `proto_bert_nsp/README.md`) |
+| Table 7 | `T_knn.tex` | 12 | `analysis/kc_item_meta.py`, `analysis/emb_vis2.py` |
+| Figure 5 | `paper/figs/emb_tsne_ic.pdf` | 12 | `analysis/emb_vis2.py` |
+| Figure 6 | `paper/figs/fig_case.tex` | 12 | `analysis/make_case.py` |
+| Table 8 | `T_link.tex` | 04, 05, 06, 12 | `analysis/link_an_lg.py` |
+| Table 9 | macros `\kcst…` | 06, 12 | `analysis/story_an.py` |
+| Table 10 | macros `\kcctl…`, `\kcgctl…`, `\icctl…`, `\icgctl…` | 01, 02, 06, 12 | `analysis/link_an_lg.py` |
+| Table 11 | `T_degree.tex` | 12 | `analysis/link_an_lg.py` |
+| Table 12 | macros `\kcabl…`, `\icabl…` | 07 | `analysis/ablation_an.py` |
+| Table 12, row of the mean readout (runs `T_readout_mean`) | macros `\kcablreadoutmean…`, `\icablreadoutmean…` | 07 | `model/core.py` (`--readout mean`), `analysis/ablation_an.py`, `tables/make_tables.py` |
 | Table A1 | macros `…Afive`, `…Ffive` | 04, 05, 09 | `tables/make_tables.py`, `baselines/base_full_eval.py` |
 | Table A2 | `T_sig.tex` | 04, 05 | `tables/make_tables.py` |
 | Table A3 | `T_unmasked.tex` | 04, 05, 09 | `tables/make_tables.py`, `baselines/base_full_eval.py` |
@@ -109,6 +115,9 @@ The numbering is that of the paper. All table files and macros (`paper/numbers.t
 | Table A7 | `T_edges.tex` | 01, 10 | `graphs/drop_edges.py`, `analysis/edge_removal_an.py` |
 | Table A8 | `T_fsens.tex` | 01, 08 | `graphs/build_graph_katchers.py` |
 | Table A9 | `T_ic_enc.tex` | 03, 11 | `graphs/text_electra_en.py`, `tables/make_tables.py` |
+| Appendix G, Table A10 (runs `T_finalw1`, `T_finalw4`) | macros `\kcablfinalw…`, `\icablfinalw…` | 07 | `model/core.py` (`--final-weight`), `analysis/ablation_an.py`, `tables/make_tables.py` |
+| Appendix H, Table A11 | `results/analysis/textft_an.json` | 01, 03, 04, 05, then `proto_textft/run_all.sh` (cache, train, an) | `proto_textft/core.py`, `proto_textft/text_electra_partial.py`, `proto_textft/textft_an.py` |
+| Section 5.3, weighted degrees in the real and the rewired graphs | `paper/tables/rewire_degree.json` (the script also writes `paper/tables/T_rewire_degree.tex`) | 01, 02, 13 | `tables/rewire_degree_check.py` |
 | In-text numbers (Holm correction, group shares, comparison by order size, token statistics, parameter counts, etc.) | `paper/numbers.tex`, `paper/tables/holm.json` | 12, 13 | `tables/make_tables.py`, `analysis/extra_an2.py`, `analysis/extra_ordsize.py`, `analysis/tok_stats.py` |
 
 ## Citation

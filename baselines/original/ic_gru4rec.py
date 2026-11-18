@@ -1,4 +1,4 @@
-"""Baseline of the paper (Section 5.2; Table 2, Tables A1 and A3): GRU4Rec (BPR-max)
+"""Baseline of the paper (Section 5.2; Table 6, Tables A1 and A3): GRU4Rec (BPR-max)
 Dataset: Instacart
 Run: python baselines/original/ic_gru4rec.py --data-dir <DATA_DIR> --emb-dir <EMB_DIR> --out-dir <OUT_DIR> (the paper's numbers: scripts/09_baselines_full.sh)
 """

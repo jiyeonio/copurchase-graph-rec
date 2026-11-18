@@ -55,6 +55,10 @@ def parse_args(data_dir, eval_every, val_batch, text_required):
     p.add_argument("--ckpt-dir", default=None)
     p.add_argument("--last-order-only", action="store_true", help="variant: train on the final target only (Appendix, training rule)")
     p.add_argument("--item-level", action="store_true", help="variant: one position per item and an item-level causal mask (backbone variant)")
+    p.add_argument("--readout", choices=["last", "mean"], default="last",
+                   help="order state: last = hidden state of the order's last token (paper); mean = mean hidden state of the order's tokens (variant)")
+    p.add_argument("--final-weight", type=float, default=FINAL_W,
+                   help="weight lambda of the final-target term in the dense next-order loss (paper: 2.0)")
     p.add_argument("--no-compile", action="store_true", help="do not use torch.compile for the training loss")
     p.add_argument("--dump-pu", default=None, help="per-user test NDCG under 1:49 ranking, path with {seed}")
     p.add_argument("--dump-full", default=None, help="per-user test NDCG under full-catalogue ranking (history removed), path with {seed}")
@@ -174,8 +178,12 @@ class Encoder(nn.Module):
         return [h[i * B:(i + 1) * B] for i in range(V)]
 
 
-def last_order_state(h, tx_pos, valid):
-    """hidden state of the last token of the last order"""
+def last_order_state(h, tx_pos, valid, readout="last"):
+    """hidden state of the last token of the last order (readout="mean": mean hidden state of the tokens of the last order)"""
+    if readout == "mean":
+        last_tx = torch.where(valid, tx_pos, torch.full_like(tx_pos, -1)).max(dim=1).values
+        m = (valid & (tx_pos == last_tx[:, None])).to(h.dtype)
+        return (h * m[..., None]).sum(1) / m.sum(1, keepdim=True).clamp_min(1.0)
     B, S, H = h.shape
     pos = torch.arange(S, device=h.device).unsqueeze(0).expand(B, S)
     last_tx = torch.where(valid, tx_pos, torch.full_like(tx_pos, -1)).max(dim=1).values
@@ -183,8 +191,11 @@ def last_order_state(h, tx_pos, valid):
     return h[torch.arange(B, device=h.device), li]
 
 
-def order_states(M, h):
-    """states of all orders (B,K,H): hidden state of the last token of each order. M (B,K,S) marks the positions of every order."""
+def order_states(M, h, readout="last"):
+    """states of all orders (B,K,H): hidden state of the last token of each order (readout="mean": mean hidden state of its tokens).
+    M (B,K,S) marks the positions of every order."""
+    if readout == "mean":
+        return torch.einsum("bks,bsh->bkh", M, h) / M.sum(-1).clamp_min(1.0)[..., None]
     B, K, S = M.shape
     pos = torch.arange(1, S + 1, device=M.device, dtype=torch.float32)
     li = ((M.float() * pos).amax(-1).long() - 1).clamp_min(0)
@@ -192,9 +203,10 @@ def order_states(M, h):
 
 
 class TransactionModel(nn.Module):
-    def __init__(self, src, num_items, hidden_dim, dropout, text_emb, graph_emb, item_level=False):
+    def __init__(self, src, num_items, hidden_dim, dropout, text_emb, graph_emb, item_level=False, readout="last"):
         super().__init__()
         d = hidden_dim
+        self.readout = readout
         self.num_items, self.views = num_items, src.split("+")
         if "text" in self.views: self.p_text = nn.Sequential(nn.Linear(TEXT_RAW_DIM, d), nn.LayerNorm(d), nn.GELU())
         if "graph" in self.views: self.p_graph = nn.Sequential(nn.Linear(GRAPH_RAW_DIM, d), nn.LayerNorm(d), nn.GELU())
@@ -239,7 +251,7 @@ class TransactionModel(nn.Module):
 
     def user_states(self, item_ids, tx_pos, valid):
         H = self.hidden(item_ids, tx_pos, valid)
-        return {v: last_order_state(H[i], tx_pos, valid) for i, v in enumerate(self.views)}
+        return {v: last_order_state(H[i], tx_pos, valid, self.readout) for i, v in enumerate(self.views)}
 
     def forward(self, item_ids, tx_pos, valid, candidate_ids=None):
         return self.score(self.user_states(item_ids, tx_pos, valid), candidate_ids)
@@ -249,7 +261,7 @@ class TransactionModel(nn.Module):
         n_tx = torch.where(valid, tx_pos, torch.full_like(tx_pos, -1)).max(dim=1).values + 1
         kk = torch.arange(MAX_ORDERS, device=H[0].device)
         M = (valid[:, None, :] & (tx_pos[:, None, :] == kk[None, :, None])).to(H[0].dtype)
-        return {v: order_states(M, H[i]) for i, v in enumerate(self.views)}, M.sum(-1) > 0, n_tx
+        return {v: order_states(M, H[i], self.readout) for i, v in enumerate(self.views)}, M.sum(-1) > 0, n_tx
 
     def dense_loss(self, item_ids, tx_pos, valid, final_target, final_w):
         """state of order k predicts the items of order k+1 (one cross-entropy term per item); the state of the last order predicts the
@@ -419,9 +431,9 @@ def run(args, data, graph_file):
         if "graph" in args.src:
             graph_emb = torch.as_tensor(np.load(graph_file(args.graph_dir, seed)), dtype=torch.float32, device=device)
             assert tuple(graph_emb.shape) == (data.num_items, GRAPH_RAW_DIM) and torch.isfinite(graph_emb).all()
-        model = TransactionModel(args.src, data.num_items, args.hidden, args.dropout, data.text, graph_emb, args.item_level).to(device)
+        model = TransactionModel(args.src, data.num_items, args.hidden, args.dropout, data.text, graph_emb, args.item_level, args.readout).to(device)
         lossfn = model.dense_loss if args.no_compile else torch.compile(model.dense_loss, dynamic=True)
-        print(f"MODEL src={args.src} seed={seed} item_level={args.item_level} last_order_only={args.last_order_only} "
+        print(f"MODEL src={args.src} seed={seed} item_level={args.item_level} readout={args.readout} final_weight={args.final_weight} last_order_only={args.last_order_only} "
               f"max_epochs={epochs} eval_every={args.eval_every} patience={args.patience} compile={not args.no_compile}", flush=True)
         if not args.last_order_only:
             assert_prefix_causal(model, data)
@@ -445,7 +457,7 @@ def run(args, data, graph_file):
                     if args.last_order_only:
                         loss = F.cross_entropy(model(ip, tp, vm), tg)
                     else:
-                        loss = lossfn(ip, tp, vm, tg, FINAL_W)
+                        loss = lossfn(ip, tp, vm, tg, args.final_weight)
                 scaler.scale(loss).backward()
                 scaler.unscale_(opt)
                 torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=GRAD_CLIP)
@@ -469,7 +481,7 @@ def run(args, data, graph_file):
         res = {"seed": seed, "src": args.src, "best_epoch": best_ep, "val": summarize(p10, gr), "val_ndcg5": summarize(p5, gr),
                "view_weights": {k: float(v) for k, v in model.weights().items()},
                "config": {"hidden": args.hidden, "dropout": args.dropout, "lr": args.lr, "graph_dir": args.graph_dir, "text_path": args.text_path,
-                          "item_level": args.item_level, "last_order_only": args.last_order_only, "eval_every": args.eval_every,
+                          "item_level": args.item_level, "readout": args.readout, "final_weight": args.final_weight, "last_order_only": args.last_order_only, "eval_every": args.eval_every,
                           "patience": args.patience, "max_epochs": args.epochs},
                "elapsed_min": (time.time() - t0) / 60}
         if args.test:

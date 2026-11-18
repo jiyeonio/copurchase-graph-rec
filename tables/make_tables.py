@@ -333,6 +333,30 @@ mac('parkohbest', f'{PARKOH[-1][1]:.4f}'); mac('parkohbase', f'{PARKOH[-2][1]:.4
 _CS = json.load(open(f'{OUT}tables/check_stats.json'))
 mac('kcordersperuser', f"{_CS['kc_train_data']['orders_per_user_mean']:.2f}"); mac('icordersperuser', f"{_CS['ic_train']['orders_per_user_mean']:.1f}"); mac('icitemsperorder', f"{_CS['ic_train']['items_per_order_mean']:.2f}")
 mac('iclinkedhi', f"{np.ceil(100 * max(LA[f'ic|full|linked|{m}'] for m in ('text', 'final', 'final_rw', 'graph', 'graph_rw'))) / 100:.2f}")
+# ----------------------------------------------------------------- order-state readout variant (runs {kc11,ic11}/T_readout_mean, analysis/ablation_an.py)
+# not in the Holm set. d = variant - proposed model, as for the other variants.
+for ds in ('kc', 'ic'):
+    rs = ldir(f'{ds}11/T_readout_mean')
+    for proto, k, P_ in (('1to49', 'test', 'A'), ('full', 'test_full_masked', 'F')):
+        a = AB.get(f'{ds}|{proto}|readout_mean')
+        mac(f'{ds}ablreadoutmean{P_}', '[TODO]' if rs is None else f'{vals(rs, k).mean():.4f}')
+        mac(f'{ds}ablreadoutmeand{P_}', '[TODO]' if a is None else f"{-a['delta']:+.4f}" + (r'$^{*}$' if a['sig'] else ''))
+        mac(f'{ds}ablreadoutmeanci{P_}', '[TODO]' if a is None else f"[{-a['hi']:+.4f}, {-a['lo']:+.4f}]")
+        for lab, nm in (('1.0', 'single'), ('>1.5', 'multi')):
+            g = AB.get(f'{ds}|{proto}|readout_mean|meansize|{lab}')
+            mac(f'{ds}ablreadoutmeand{nm}{P_}', '[TODO]' if g is None else ('--' if 'omitted' in g else f"{-g['delta']:+.4f}" + (r'$^{*}$' if g['sig'] else '')))
+            if proto == '1to49': mac(f'{ds}ablreadoutmean{nm}n', '[TODO]' if g is None else f"{g['n']:,}")
+# ----------------------------------------------------------------- final-target weight lambda (runs {kc11,ic11}/T_finalw{1,4}, analysis/ablation_an.py)
+# not in the Holm set. lambda = 2 is the proposed model. d = variant - proposed model.
+for ds in ('kc', 'ic'):
+    for lam, ln in ((1, 'one'), (4, 'four')):
+        rs = ldir(f'{ds}11/T_finalw{lam}')
+        for proto, k, P_ in (('1to49', 'test', 'A'), ('full', 'test_full_masked', 'F')):
+            mac(f'{ds}ablfinalw{ln}{P_}', ms(rs, k, False)); mac(f'{ds}ablfinalw{ln}pm{P_}', ms(rs, k))
+            for g, gn in (('all', ''), ('prev', 'prev'), ('linked', 'linked'), ('unlinked', 'unlinked')):
+                a = AB.get(f'{ds}|{proto}|finalw{lam}' + ('' if g == 'all' else f'|group|{g}'))
+                mac(f'{ds}ablfinalw{ln}d{gn}{P_}', '[TODO]' if a is None else f"{-a['delta']:+.4f}" + (r'$^{*}$' if a['sig'] else ''))
+                if g == 'all': mac(f'{ds}ablfinalw{ln}ci{P_}', '[TODO]' if a is None else f"[{-a['hi']:+.4f}, {-a['lo']:+.4f}]")
 
 import re as _re
 def _minus(t): return _re.sub(r'(?<![\w$\\{-])-(?=\d)', r'\\ensuremath{-}', t)       # a hyphen before a digit is a minus sign: typeset it as one (text or math mode)
