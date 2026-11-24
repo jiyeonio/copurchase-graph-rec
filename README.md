@@ -69,6 +69,7 @@ bash 10_edge_removal.sh          # Katcher's edge removal
 bash 11_english_encoder.sh       # Instacart ELECTRA-base
 bash 12_analysis.sh              # rank dumps, group analyses, nearest neighbours, Figures 5 and 6
 bash 13_tables.sh                # paper/tables/*.tex, paper/numbers.tex
+bash 14_valneg_check.sh          # Katcher's validation negatives: history items, retraining with negatives outside the history
 ```
 
 To run a single model directly:
@@ -117,7 +118,10 @@ The numbering is that of the paper. Unless a row says otherwise, the table files
 | Table A9 | `T_ic_enc.tex` | 03, 11 | `graphs/text_electra_en.py`, `tables/make_tables.py` |
 | Appendix G, Table A10 (runs `T_finalw1`, `T_finalw4`) | macros `\kcablfinalw…`, `\icablfinalw…` | 07 | `model/core.py` (`--final-weight`), `analysis/ablation_an.py`, `tables/make_tables.py` |
 | Appendix H, Table A11 | `results/analysis/textft_an.json` | 01, 03, 04, 05, then `proto_textft/run_all.sh` (cache, train, an) | `proto_textft/core.py`, `proto_textft/text_electra_partial.py`, `proto_textft/textft_an.py` |
+| Section 5.1, validation negatives with history items | `results/analysis/val_neg_history.json` | 14 | `analysis/val_neg_history.py` |
+| Section 5.1, check with validation negatives outside the history (runs `K_id_valnh`, `I_text_valnh`, `I_co_lgcn_valnh`, `I_text_co_lgcn_late_valnh`) | `results/analysis/valneg_check_an.json` | 04, 12, 14 | `model/model_katchers.py` (`--val-exclude-history`), `analysis/valneg_check_an.py` |
 | Section 5.3, weighted degrees in the real and the rewired graphs | `paper/tables/rewire_degree.json` (the script also writes `paper/tables/T_rewire_degree.tex`) | 01, 02, 13 | `tables/rewire_degree_check.py` |
+| Section 6.2, selection of the users of Figure 6 | `results/analysis/case_candidates.json` | 12 | `analysis/case_candidates.py` |
 | In-text numbers (Holm correction, group shares, comparison by order size, token statistics, parameter counts, etc.) | `paper/numbers.tex`, `paper/tables/holm.json` | 12, 13 | `tables/make_tables.py`, `analysis/extra_an2.py`, `analysis/extra_ordsize.py`, `analysis/tok_stats.py` |
 
 ## Citation

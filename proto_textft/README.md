@@ -15,7 +15,7 @@ The paper keeps the text representation fixed. This folder trains part of the te
 | File | Content |
 |---|---|
 | `core.py` | `model/core.py` with the option `--text-ft top` (partial fine-tuning, encoder lr and dropout) and `--enc-checkpoint` (off by default). |
-| `model_katchers.py`, `model_instacart.py` | Byte-identical copies of the same files in `model/`; `import core` reads `core.py` of this folder. |
+| `model_katchers.py`, `model_instacart.py` | Copies of `model/model_katchers.py` and `model/model_instacart.py` as they were when the results of Appendix H were produced, before the option `--val-exclude-history` was added to `model/model_katchers.py`; `import core` reads `core.py` of this folder. |
 | `text_electra_partial.py` | Cache of the output of the frozen layers 1–10 (same input sentences, tokenizer, max_length and batches as `graphs/text_electra.py`). |
 | `textft_an.py` | Paired tests per user against the fixed text representation (bootstrap and Wilcoxon as in the paper, `analysis/common.py`), values per target group (`analysis/link_an_lg.py`), learned fusion weights, results per seed. Output: `<RESULTS>/analysis/textft_an.json` (Table A11). |
 | `run_all.sh` | Steps `cache`, `train`, `an`. |

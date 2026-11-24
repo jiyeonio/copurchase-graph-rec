@@ -14,7 +14,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from paths import KC
 
 VAL_NEGATIVE_SEED = 42
-args = core.parse_args(KC, eval_every=2, val_batch=256, text_required=True)
+args = core.parse_args(KC, eval_every=2, val_batch=256, text_required=True, extra=lambda p: p.add_argument(
+    "--val-exclude-history", action="store_true", help="draw the 49 validation negatives from items outside the user's history (off: the paper)"))
 D = args.data_dir
 
 
@@ -39,8 +40,8 @@ def seen_items(history, uids):
     return {u: {int(i) for e in history.get(u, []) for i in e.get("items", []) if 0 <= int(i) < NUM_ITEMS} for u in uids}
 
 
-def val_negatives(uid, target, n=49):
-    pool = np.array([i for i in range(NUM_ITEMS) if i != target], dtype=np.int64)
+def val_negatives(uid, target, n=49, exclude=frozenset()):
+    pool = np.array([i for i in range(NUM_ITEMS) if i != target and i not in exclude], dtype=np.int64)
     rng = np.random.default_rng((VAL_NEGATIVE_SEED + zlib.crc32(str(uid).encode("utf-8"))) % (2**32))
     return rng.choice(pool, size=n, replace=False).tolist()
 
@@ -48,12 +49,14 @@ def val_negatives(uid, target, n=49):
 train_cache = core.build_cache(train_data, flatten)
 val_cache = core.build_cache(val_history, flatten)
 val_candidates = {}
+val_hist_items = seen_items(val_history, val_data) if args.val_exclude_history else {}
 for uid, ev in val_data.items():
     uid = str(uid)
     ti = ev.get("items", [])
     if uid not in val_cache or not ti or not (0 <= int(ti[0]) < NUM_ITEMS):
         continue
-    val_candidates[uid] = [int(ti[0]), *val_negatives(uid, int(ti[0]), 49)]
+    val_candidates[uid] = [int(ti[0]), *val_negatives(uid, int(ti[0]), 49, val_hist_items.get(uid, frozenset()))]
+print(f"validation negatives: exclude history={args.val_exclude_history}, {len(val_candidates)} users", flush=True)
 
 test_candidates, test_cache, test_data, test_history = {}, {}, {}, {}
 if args.test:                                   # test negatives: the fixed file of the dataset

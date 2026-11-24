@@ -34,7 +34,8 @@ torch.backends.cudnn.allow_tf32 = True
 AMP_DTYPE = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
 
 
-def parse_args(data_dir, eval_every, val_batch, text_required):
+def parse_args(data_dir, eval_every, val_batch, text_required, extra=None):
+    """extra(p): adds the options of one dataset only"""
     p = argparse.ArgumentParser()
     p.add_argument("--exp", required=True, help="run name; results go to <out-root>/<exp>/")
     p.add_argument("--src", required=True, choices=["text+graph", "text", "graph", "id"], help="item representation (text+graph = proposed model)")
@@ -64,6 +65,8 @@ def parse_args(data_dir, eval_every, val_batch, text_required):
     p.add_argument("--dump-full", default=None, help="per-user test NDCG under full-catalogue ranking (history removed), path with {seed}")
     p.add_argument("--dump-rank", default=None, help="per-user test rank under full-catalogue ranking, path with {seed} and {mask}")
     p.add_argument("--dump-case", default=None, help="text+graph only: top-10 of each representation for every test user, path with {seed}")
+    if extra is not None:
+        extra(p)
     return p.parse_args()
 
 

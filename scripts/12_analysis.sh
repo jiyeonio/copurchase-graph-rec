@@ -16,3 +16,4 @@ PYTHONPATH=$PYLIB $PY $A/emb_vis2.py
 # (5) case-study figure (seed 42 of the proposed model on Instacart)
 ic_train R_case text+graph $IC --seeds 42 --eval-only --ckpt-dir $RUNS/ic11/I_text_co_lgcn_late --no-compile --dump-case $AN/case_ic_seed{seed}.json
 $PY $A/make_case.py
+$PY $A/case_candidates.py > $AN/case_candidates.log 2>&1      # users meeting the selection conditions of the figure -> $AN/case_candidates.json

@@ -48,18 +48,23 @@ def tsne2(X):
     Xc = X - X.mean(0); U, S, Vt = np.linalg.svd(Xc, full_matrices=False); P = Xc @ Vt[:min(50, X.shape[1])].T
     return TSNE(n_components=2, perplexity=30, init='pca', random_state=TSNE_SEED, metric='cosine').fit_transform(P)
 PAL = ['#1f77b4', '#d62728', '#2ca02c', '#ff7f0e', '#9467bd', '#17becf']
+ISO_SIZE, ISO_LW = 24, 1.1       # hollow markers of items without a co-purchase edge, drawn above the filled ones
 # ---- t-SNE map of the Instacart items in the two representations
 name, text, graph, cats, deg = DATA[1]; top = [c for c, _ in collections.Counter(cats).most_common(TOP_GROUPS)]; cat_arr = np.array(cats); iso = deg == 0
 fig, axes = plt.subplots(1, 2, figsize=(7.6, 3.9))
 for ax, (X, rep) in zip(axes, ((text, 'Text representation'), (graph, 'Graph representation'))):
     Z = tsne2(X); other = ~np.isin(cat_arr, top)
     ax.scatter(Z[other & ~iso, 0], Z[other & ~iso, 1], s=5, color='0.75', linewidths=0, alpha=0.7, label='other aisles', rasterized=True)
-    ax.scatter(Z[other & iso, 0], Z[other & iso, 1], s=9, facecolors='none', edgecolors='0.6', linewidths=0.5, rasterized=True)
+    ax.scatter(Z[other & iso, 0], Z[other & iso, 1], s=ISO_SIZE, facecolors='none', edgecolors='0.45', linewidths=ISO_LW, rasterized=True, zorder=3)
     for ci, cname in enumerate(top):
         m = cat_arr == cname
         ax.scatter(Z[m & ~iso, 0], Z[m & ~iso, 1], s=7, color=PAL[ci], linewidths=0, alpha=0.8, label=cname, rasterized=True)
-        ax.scatter(Z[m & iso, 0], Z[m & iso, 1], s=11, facecolors='none', edgecolors=PAL[ci], linewidths=0.6, rasterized=True)
+        ax.scatter(Z[m & iso, 0], Z[m & iso, 1], s=ISO_SIZE, facecolors='none', edgecolors=PAL[ci], linewidths=ISO_LW, rasterized=True, zorder=4)
     ax.set_title(rep, fontsize=10.5); ax.set_xticks([]); ax.set_yticks([])
+from matplotlib.lines import Line2D
 h, l = axes[0].get_legend_handles_labels()
-fig.legend(h, l, loc='lower center', ncol=4, fontsize=9, frameon=False, markerscale=2.4, handletextpad=0.2, columnspacing=1.2, bbox_to_anchor=(0.5, 0.0))
-plt.tight_layout(rect=(0, 0.14, 1, 1)); plt.savefig(OUT + 'figs/emb_tsne_ic.pdf', dpi=300); plt.close(); print('saved')
+h += [Line2D([], [], ls='', marker='o', ms=3, mfc='0.3', mec='none'), Line2D([], [], ls='', marker='o', ms=5, mfc='none', mec='0.3', mew=ISO_LW)]
+l += ['with co-purchase edges', 'without a co-purchase edge']
+fig.legend(h, l, loc='lower center', ncol=4, fontsize=9, frameon=False, markerscale=1.0, handletextpad=0.2, columnspacing=1.2, bbox_to_anchor=(0.5, 0.0))
+for hd in fig.legends[0].legend_handles[:len(h) - 2]: hd.set_sizes([5 * 2.4 ** 2])   # aisle dots as large as with markerscale 2.4
+plt.tight_layout(rect=(0, 0.17, 1, 1)); plt.savefig(OUT + 'figs/emb_tsne_ic.pdf', dpi=300); plt.close(); print('saved')
